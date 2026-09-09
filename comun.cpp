@@ -1,0 +1,70 @@
+#include "comun.h"
+#include <cstring>
+#include <cstdio>
+
+
+//----- Funciones desarrolladas -----
+
+int buscarMozo(Mozo mozos[], int len, char nombreBuscado[]){
+    int i=0;
+    while (i<len && strcmp(mozos[i].nombre, nombreBuscado) != 0){ //strcmp (string compare) compara nombres para usarlos como clave, si devuelve 0 es porque son iguales
+        i++;
+    }
+    if (i==len){
+        return -1; //no encontrado
+    } else {
+        return i; //encontrado en posicion i
+    }
+}
+
+void cargarInventario(Producto inv[], int& lenInv){
+    FILE* inventario = fopen("inventario.dat", "rb");
+    if (inventario == NULL) {
+         return;
+    }
+    while (fread(&inv[lenInv], sizeof(Producto), 1, inventario) == 1)
+    {
+        lenInv++;
+    }
+    fclose(inventario);
+}
+
+void encriptarClave(char clave[], int k){
+    int i=0;
+    while (clave[i] != '\0') { // mientras no llegue al final del array. mientras la clave todavia exista
+        clave[i] = clave[i] + k;
+        i++;
+    }
+}
+
+int buscarProducto(Producto inv[], int len, int codigoBuscado){
+    int izquierda = 0;
+    int derecha = len - 1;
+     while (izquierda <= derecha) {
+        int medio = (izquierda + derecha) / 2;
+        if (inv[medio].codigo == codigoBuscado) {
+             return medio; // encontrado
+         } else if (inv[medio].codigo < codigoBuscado) {
+             izquierda = medio + 1; // buscar en la mitad derecha
+         } else {
+             derecha = medio - 1; // buscar en la mitad izquierda
+         }
+     }
+ return -1;
+}
+
+// Reordena "DD-MM-AAAA" a "AAAAMMDD" en una variable aparte (resultado),
+// sin modificar la fecha original. En ese orden, comparar con strcmp
+// sí da el orden cronológico correcto, sin depender de que las fechas
+// compartan mes o año.
+void fechaAOrden(char fecha[], char resultado[]){
+    resultado[0] = fecha[6]; // A
+    resultado[1] = fecha[7]; // A
+    resultado[2] = fecha[8]; // A
+    resultado[3] = fecha[9]; // A
+    resultado[4] = fecha[3]; // M
+    resultado[5] = fecha[4]; // M
+    resultado[6] = fecha[0]; // D
+    resultado[7] = fecha[1]; // D
+    resultado[8] = '\0';
+}
