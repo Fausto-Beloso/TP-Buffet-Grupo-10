@@ -93,4 +93,19 @@ void fechaAOrden(char fecha[], char resultado[]){
     resultado[8] = '\0';
 }
 
+void ordenarPlanilla(Comanda ventas[], int lenVentas) {
+    for (int i = 0; i < lenVentas - 1; i++) {
+        int posMenor = i;
+        for (int j = i + 1; j < lenVentas; j++) {
+            if (ventas[j].idMozo < ventas[posMenor].idMozo) {
+                posMenor = j;
+            }
+        }
+        if (posMenor != i) {
+            Comanda aux = ventas[i];
+            ventas[i] = ventas[posMenor];
+            ventas[posMenor] = aux;
+        }
+    }
+}
 #endif
