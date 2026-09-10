@@ -1,4 +1,4 @@
- #include <iostream>
+#include <iostream>
 #include <cstdio>
 #include <cstring>
 #include "comun.h" // contiene structs base
