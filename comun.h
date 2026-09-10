@@ -1,5 +1,8 @@
 #ifndef COMUN_H
 #define COMUN_H
+#include <cstring>
+#include <iostream>
+using namespace std;
 
 //----- Structs -----
 
@@ -107,5 +110,23 @@ void ordenarPlanilla(Comanda ventas[], int lenVentas) {
             ventas[posMenor] = aux;
         }
     }
+}
+int buscarMozoPorId(Mozo mozos[], int lenMozos, int idBuscado) {
+    if (idBuscado < 1 || idBuscado > lenMozos) {
+        return -1; // fuera de rango, no existe ese mozo
+    }
+    return idBuscado - 1; // acceso directo, sin recorrer nada // decision tomada en normalizacion al asignar el id al mozo = lenMozos + 1 (para que quede primer id 1 y no 0
+}
+
+void cargarMozos(Mozo mozos[], int &lenMozos) {
+    FILE* f = fopen("mozos.dat", "rb");
+    if (f == NULL) {
+        cout << "No se pudo abrir mozos.dat" << endl;
+        return;
+    }
+    while (fread(&mozos[lenMozos], sizeof(Mozo), 1, f) == 1) {
+        lenMozos++;
+    }
+    fclose(f);
 }
 #endif

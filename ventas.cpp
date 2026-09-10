@@ -39,25 +39,10 @@ void guardarDatosFinales (Producto inv[], int lenInv, Mozo mozos[], int lenMozos
 
 //----- Funciones propias de ventas desarrolladas -----
 
-void cargarMozos(Mozo mozos[], int &lenMozos) {
-    FILE* f = fopen("mozos.dat", "rb");
-    if (f == NULL) {
-        cout << "No se pudo abrir mozos.dat" << endl;
-        return;
-    }
-    while (fread(&mozos[lenMozos], sizeof(Mozo), 1, f) == 1) {
-        lenMozos++;
-    }
-    fclose(f);
-}
+
 
 // solo busca al mozo retornando la posicion
-int buscarMozoPorId(Mozo mozos[], int lenMozos, int idBuscado) {
-    if (idBuscado < 1 || idBuscado > lenMozos) {
-        return -1; // fuera de rango, no existe ese mozo
-    }
-    return idBuscado - 1; // acceso directo, sin recorrer nada // decision tomada en normalizacion al asignar el id al mozo = lenMozos + 1 (para que quede primer id 1 y no 0
-}
+
 
 // con la posicion de mozo encontrado, compara las contrasenias
 bool validarClave(Mozo mozos[], int pos, char claveIngresada[]) {
@@ -107,21 +92,7 @@ bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char 
     return true;
 }
 
-void ordenarPlanilla(Comanda ventas[], int lenVentas) {
-    for (int i = 0; i < lenVentas - 1; i++) {
-        int posMenor = i;
-        for (int j = i + 1; j < lenVentas; j++) {
-            if (ventas[j].idMozo < ventas[posMenor].idMozo) {
-                posMenor = j;
-            }
-        }
-        if (posMenor != i) {
-            Comanda aux = ventas[i];
-            ventas[i] = ventas[posMenor];
-            ventas[posMenor] = aux;
-        }
-    }
-}
+
 
 void guardarPlanillaDia(Comanda ventas[], int lenVentas, char fecha[]) {
     char nombreArchivo[30];
@@ -147,7 +118,7 @@ void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos)
 
     FILE* fMoz = fopen("mozos.dat", "wb");
     if (fMoz == NULL) {
-        cout << "No se pudo guardar mozos.dat" << endl;
+        cout << "No se pudo guardar mozos.dat" <<endl;
         return;
     }
     fwrite(mozos, sizeof(Mozo), lenMozos, fMoz);
