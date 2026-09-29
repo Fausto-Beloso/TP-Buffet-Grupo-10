@@ -13,7 +13,9 @@ cp datos/comandas_historicas.dat datos/inventario.dat .
 
 Compilar los 4 programas:
 
+
 g++ normalizacion.cpp -o normalizacion .\normalizacion g++ ventas.cpp -o ventas .\ventas Lo mismo aplica para 'cierre.cpp' y 'resumen.cpp'.
+
 Ejecutar en este orden (cada uno depende de lo que deja el anterior):
 
 ./normalizacion # historicas + inventario -> mozos.dat, comandas_dd-mm-aaaa.dat (uno por dia), inventario actualizado ./ventas # carga interactiva de ventas de UN dia -> agrega/crea la planilla de ese dia ./cierre # junta los dias que se le pidan -> comandas_semana_sX-mm.dat ./resumen # pide numero de semana y mes -> imprime el resumen por mozo y el total
@@ -22,7 +24,7 @@ Ejecutar en este orden (cada uno depende de lo que deja el anterior):
 
 En Windows (CMD/PowerShell) la compilación es igual pero sin -O2 -Wall si no se quiere, y la ejecución cambia de ./programa a .\programa. Por ejemplo, para compilar y correr normalizacion.cpp y ventas.cpp:
 
-
+g++ normalizacion.cpp -o normalizacion .\normalizacion g++ ventas.cpp -o ventas .\ventas Lo mismo aplica para 'cierre.cpp' y 'resumen.cpp'.
 
 Diseño de datos
 Structs definidas en 'comun.h'.
