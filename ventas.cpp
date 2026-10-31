@@ -20,28 +20,19 @@ int buscarMozoPorId (Mozo mozos[], int lenMozos, int idBuscado);
 //c. copia la clave tipeada y la compara con la original
 bool validarClave (Mozo mozos[], int pos, char claveIngresada[]);
 
-//d. abre comandas_<fecha>.dat
-//si no existe todavia, no es un error (es el primer alta del dia) arranca con lenVentas=0 sin mensaje de alarma
-//si existe carga lo que ya habia para no pisarlo
-void cargarPlanillaDia (Comanda vent[], int &lenVentas, char fecha[]);
+//d. busca el producto (binaria), chequea stock, calcula comision, descuenta stock, suma comision al mozo y agrega el registro a ventas[]
+bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad);
 
-//e. busca el producto (binaria), chequea stock, calcula comision, descuenta stock, suma comision al mozo y agrega el registro a ventas[]
-bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad, Comanda ventas[], int &lenVentas);
-
-//f. selección, pero aca compara solo por idMozo
+//e. selección, pero aca compara solo por idMozo
 void ordenarPlanilla (Comanda ventas[], int lenVentas);
 
-//g. vuelca el array ordenado al archivo del día en modo "wb"
-void guardarPlanillaDia (Comanda ventas[], int lenVentas, char fecha[]);
-
-//h. actualiza inventario.dat y mozos.dat
+//f. actualiza inventario.dat y mozos.dat
 void guardarDatosFinales (Producto inv[], int lenInv, Mozo mozos[], int lenMozos);
 
 //----- Funciones propias de ventas desarrolladas -----
 
 
 
-// solo busca al mozo retornando la posicion
 
 
 // con la posicion de mozo encontrado, compara las contrasenias
@@ -52,60 +43,46 @@ bool validarClave(Mozo mozos[], int pos, char claveIngresada[]) {
     return strcmp(copia, mozos[pos].password) == 0;
 }
 
-void cargarPlanillaDia(Comanda ventas[], int &lenVentas, char fecha[]) {
-    char nombreArchivo[30];
-    sprintf(nombreArchivo, "comandas_%s.dat", fecha); // sprintf = printf = cout. sprintf escribe el texto dentro de un char[] en vez de mostrarlo por pantalla
-                                                     // %s indica que va un string
-    FILE* f = fopen(nombreArchivo, "rb");
-    if (f == NULL) {
-        return; // primera venta del dia: todavia no existe la planilla, no es error
-    }
-    while (fread(&ventas[lenVentas], sizeof(Comanda), 1, f) == 1) {
-        lenVentas++;
-    }
-    fclose(f);
-}
 
 // para el problema de que se quiera vender y no haya stock, decidimos rechazar la venta
-bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad, Comanda ventas[], int &lenVentas){
-	 int posProd = buscarProducto(inv, lenInv, codigoProducto);
+
+bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad){
+    int posProd = buscarProducto(inv, lenInv, codigoProducto);
     if (posProd == -1) {
         cout << "No existe el producto " << codigoProducto << endl;
         return false;
     }
     if (inv[posProd].stockActual < cantidad) {
         cout << "Stock insuficiente. Disponible: " << inv[posProd].stockActual << endl;
-        return false; // la venta se rechaza, no se vende lo que no hay
+        return false;
     }
 
-    inv[posProd].stockActual -= cantidad;
     float comision = inv[posProd].precio * cantidad * TASA_COMISION;
 
-    strcpy(ventas[lenVentas].fecha, fecha);
-    ventas[lenVentas].idMozo = mozos[posMozo].idMozo;
-    ventas[lenVentas].codigoProducto = codigoProducto;
-    ventas[lenVentas].cantidad = cantidad;
-    ventas[lenVentas].comision = comision;
-    lenVentas++;
+    Comanda c; // una sola comanda en memoria, no un array
+    strcpy(c.fecha, fecha);
+    c.idMozo = mozos[posMozo].idMozo;
+    c.codigoProducto = codigoProducto;
+    c.cantidad = cantidad;
+    c.comision = comision;
 
+    char nombreArchivo[30];
+    sprintf(nombreArchivo, "comandas%s.dat", fecha);
+    FILE* f = fopen(nombreArchivo, "ab"); // "ab" = agrega al final, si no existe lo crea
+    if (f == NULL) {
+        cout << "No se pudo abrir " << nombreArchivo << endl;
+        return false;
+    }
+    fwrite(&c, sizeof(Comanda), 1, f);
+    fclose(f);
+
+    inv[posProd].stockActual -= cantidad; // recien ahora, con la venta ya grabada
     mozos[posMozo].totalComision += comision;
     return true;
 }
 
 
 
-void guardarPlanillaDia(Comanda ventas[], int lenVentas, char fecha[]) {
-    char nombreArchivo[30];
-    sprintf(nombreArchivo, "comandas_%s.dat", fecha);
-
-    FILE* f = fopen(nombreArchivo, "wb");
-    if (f == NULL) {
-        cout << "No se pudo guardar " << nombreArchivo << endl;
-        return;
-    }
-    fwrite(ventas, sizeof(Comanda), lenVentas, f);
-    fclose(f);
-}
 
 void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos) {
     FILE* fInv = fopen("inventario.dat", "wb");
@@ -126,7 +103,7 @@ void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos)
 }
 
 int main() {
-	// declaración de los 3 "contenedores" en RAM, cada uno con su contador
+	// declaración en RAM, cada uno con su contador
     const int MAX_PROD = 100;
     const int MAX_MOZOS = 100;
     const int MAX_VENTAS_DIA = 200;
@@ -135,8 +112,8 @@ int main() {
     int lenInv = 0;
     Mozo mozos[MAX_MOZOS];
     int lenMozos = 0;
-    Comanda ventas[MAX_VENTAS_DIA];
-    int lenVentas = 0;
+    int ventasHoy = 0;
+    int unidadesHoy = 0; 
 	
 	// carga lo que ya existe antes de arrancar a vender 
     cargarInventario(inv, lenInv);
@@ -153,8 +130,6 @@ int main() {
     cout << "Fecha del dia (DD-MM-AAAA): ";
     cin >> fecha;
 
-    cargarPlanillaDia(ventas, lenVentas, fecha);
-	
 	// el while que se repite mientras se quiera seguir va registrando venta por venta
     char seguir = 's';
     while (seguir == 's' || seguir == 'S') {
@@ -177,8 +152,12 @@ int main() {
             cout << "Cantidad: ";
             cin >> cantidad;
 
-            registrarVenta(inv, lenInv, mozos, posMozo, fecha,
-                            codigoProducto, cantidad, ventas, lenVentas);
+            if (registrarVenta(inv, lenInv, mozos, posMozo, fecha,
+                               codigoProducto, cantidad)) {
+                ventasHoy++;
+                unidadesHoy += cantidad; 
+                guardarDatosFinales(inv, lenInv, mozos, lenMozos); 
+            }
         }
 
         cout << "Cargar otra venta? (s/n): ";
@@ -186,10 +165,8 @@ int main() {
     }
 
 	// cuando ya terminaron de cargar todas las ventas del dia
-    ordenarPlanilla(ventas, lenVentas);
-    guardarPlanillaDia(ventas, lenVentas, fecha);
-    guardarDatosFinales(inv, lenInv, mozos, lenMozos);
-
-    cout << "Listo. Ventas cargadas hoy: " << lenVentas << endl;
+  
+    cout << "Listo. Ventas cargadas hoy: " << ventasHoy
+         << " | Unidades vendidas: " << unidadesHoy << endl;
     return 0;
 }
