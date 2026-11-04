@@ -11,25 +11,17 @@ Copiar los archivos que provee la cátedra a la carpeta de trabajo:
 
 cp datos/comandas_historicas.dat datos/inventario.dat .
 
-Compilar los 4 programas:
 
-
-g++ normalizacion.cpp -o normalizacion .\normalizacion g++ ventas.cpp -o ventas .\ventas Lo mismo aplica para 'cierre.cpp' y 'resumen.cpp'.
-
-Ejecutar en este orden (cada uno depende de lo que deja el anterior):
 
 ./normalizacion # historicas + inventario -> mozos.dat, comandas_dd-mm-aaaa.dat (uno por dia), inventario actualizado ./ventas # carga interactiva de ventas de UN dia -> agrega/crea la planilla de ese dia ./cierre # junta los dias que se le pidan -> comandas_semana_sX-mm.dat ./resumen # pide numero de semana y mes -> imprime el resumen por mozo y el total
 
 'ventas.cpp' se corre una vez por cada día de la semana que se quiera cargar: 'cierre.cpp' se corre una sola vez al final de la semana, pidiendo fecha por fecha.
 
-En Windows (CMD/PowerShell) la compilación es igual pero sin -O2 -Wall si no se quiere, y la ejecución cambia de ./programa a .\programa. Por ejemplo, para compilar y correr normalizacion.cpp y ventas.cpp:
-
-g++ normalizacion.cpp -o normalizacion .\normalizacion g++ ventas.cpp -o ventas .\ventas Lo mismo aplica para 'cierre.cpp' y 'resumen.cpp'.
 
 Diseño de datos
 Structs definidas en 'comun.h'.
 
-struct Producto { int codigo; char descripcion[50]; float precio; int stockActual; }; struct Mozo { int idMozo; char nombre[50]; char password[20]; float totalComision; }; struct Comanda { char fecha[11]; int idMozo; int codigoProducto; int cantidad; float comision; };
+
 
 Se agregó 'fecha' a 'Comanda' (no estaba en la struct sugerida por la cátedra) porque 'normalizacion.cpp' necesita poder ordenar todas las ventas cronológicamente antes de separarlas por día, y 'cierre.cpp' necesita saber la fecha de cada venta para calcular el número de semana del cierre.
 
