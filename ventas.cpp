@@ -14,14 +14,18 @@ const float TASA_COMISION = 0.10f; //comision a calcular
 //a. copia la clave tipeada y la compara con la original
 bool validarClave (Mozo mozos[], int pos, char claveIngresada[]);
 
-//b. busca el producto (binaria), chequea stock, calcula comision, descuenta stock, suma comision al mozo y graba la venta directo en la planilla del dia
-bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad);
+//b. Edita en el lugar el registro del producto en inventario.dat: fseek, fread, fseek hacia atras, fwrite (la misma de normalizacion).
+bool descontarStockEnArchivo(FILE* fInv, int posProd, int cantidad, int &stockPrevio);
 
-//c. ordena la planilla del dia por idMozo directo sobre el archivo (seleccion con fseek), sin limite de ventas
+//c. Edita en el lugar el registro del mozo en mozos.dat ("rb+", fseek, fwrite), sin rehacer el archivo.
+bool actualizarMozoEnArchivo(Mozo &m, int posMozo);
+
+//d. busca el producto, chequea stock, calcula comision, graba la venta directo en la planilla del dia ("ab"),
+//   descuenta el stock en inventario.dat EN EL LUGAR y actualiza al mozo en mozos.dat EN EL LUGAR
+bool registrarVenta(FILE* fInv, Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad);
+
+//e. ordena la planilla del dia por idMozo directo sobre el archivo (seleccion con fseek), sin limite de ventas
 void ordenarPlanillaDelDia (char fecha[]);
-
-//d. actualiza inventario.dat y mozos.dat
-void guardarDatosFinales (Producto inv[], int lenInv, Mozo mozos[], int lenMozos);
 
 //----- Funciones propias de ventas desarrolladas -----
 
@@ -34,10 +38,42 @@ bool validarClave(Mozo mozos[], int pos, char claveIngresada[]) {
     return strcmp(copia, mozos[pos].password) == 0;
 }
 
+bool descontarStockEnArchivo(FILE* fInv, int posProd, int cantidad, int &stockPrevio) {
+    Producto p;
+
+    fseek(fInv, (long)posProd * (long)sizeof(Producto), SEEK_SET); 
+    fread(&p, sizeof(Producto), 1, fInv);                          
+
+    stockPrevio = p.stockActual;
+    bool alcanzo = (p.stockActual >= cantidad);
+    if (alcanzo) {
+        p.stockActual = p.stockActual - cantidad;
+    } else {
+        p.stockActual = 0;
+    }
+
+    fseek(fInv, -(long)sizeof(Producto), SEEK_CUR);               
+    fwrite(&p, sizeof(Producto), 1, fInv);                  
+    return alcanzo;
+}
+
+
+// reescribe SOLO el registro del mozo, sin rehacer el archivo
+bool actualizarMozoEnArchivo(Mozo &m, int posMozo) {
+    FILE* f = fopen("mozos.dat", "rb+"); // lee/escribe sin borrar el contenido
+    if (f == NULL) {
+        cout << "No se pudo abrir mozos.dat" << endl;
+        return false;
+    }
+    fseek(f, (long)posMozo * (long)sizeof(Mozo), SEEK_SET); 
+    fwrite(&m, sizeof(Mozo), 1, f);                          
+    fclose(f);
+    return true;
+}
+
 
 // para el problema de que se quiera vender y no haya stock, decidimos rechazar la venta
-
-bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad){
+bool registrarVenta(FILE* fInv, Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad){
     int posProd = buscarProducto(inv, lenInv, codigoProducto);
     if (posProd == -1) {
         cout << "No existe el producto " << codigoProducto << endl;
@@ -67,14 +103,18 @@ bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char 
     fwrite(&c, sizeof(Comanda), 1, f);
     fclose(f);
 
-    inv[posProd].stockActual -= cantidad; // recien ahora, con la venta ya grabada
+    // recien ahora, con la venta ya grabada, se actualizan el stock y la comision
+
+    int stockPrevio;
+    descontarStockEnArchivo(fInv, posProd, cantidad, stockPrevio);
+    fclose(fInv); 
+    inv[posProd].stockActual = stockPrevio - cantidad; 
+    // comision del mozo: se edita SOLO ese mozo en mozos.dat
     mozos[posMozo].totalComision += comision;
+    actualizarMozoEnArchivo(mozos[posMozo], posMozo);
+
     return true;
 }
-
-
-// ordena la planilla del dia por idMozo directamente sobre el archivo (seleccion), sin arrays ni punteros.
-// la cantidad de ventas sale del tamano del archivo (ftell / sizeof), asi que no hay limite
 void ordenarPlanillaDelDia(char fecha[]) {
     char nombreArchivo[30];
     sprintf(nombreArchivo, "comandas_%s.dat", fecha);
@@ -111,27 +151,8 @@ void ordenarPlanillaDelDia(char fecha[]) {
     fclose(f);
 }
 
-
-void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos) {
-    FILE* fInv = fopen("inventario.dat", "wb");
-    if (fInv == NULL) {
-        cout << "No se pudo guardar inventario.dat" << endl;
-        return;
-    }
-    fwrite(inv, sizeof(Producto), lenInv, fInv);
-    fclose(fInv);
-
-    FILE* fMoz = fopen("mozos.dat", "wb");
-    if (fMoz == NULL) {
-        cout << "No se pudo guardar mozos.dat" <<endl;
-        return;
-    }
-    fwrite(mozos, sizeof(Mozo), lenMozos, fMoz);
-    fclose(fMoz);
-}
-
 int main() {
-	// declaraciÃ³n en RAM, cada uno con su contador
+    // declaracion en RAM, cada uno con su contador
     const int MAX_PROD = 100;
     const int MAX_MOZOS = 100;
 
@@ -140,24 +161,29 @@ int main() {
     Mozo mozos[MAX_MOZOS];
     int lenMozos = 0;
     int ventasHoy = 0;
-    int unidadesHoy = 0; 
-	
-	// carga lo que ya existe antes de arrancar a vender 
+    int unidadesHoy = 0;
+
+    // carga lo que ya existe antes de arrancar a vender
     cargarInventario(inv, lenInv);
     cargarMozos(mozos, lenMozos);
 
-	// ventas.cpp necesita leer lo que normalizacion.cpp ya dejo armado
+    // ventas.cpp necesita leer lo que normalizacion.cpp ya dejo armado
     if (lenInv == 0 || lenMozos == 0) {
         cout << "Faltan mozos.dat / inventario.dat. Corre normalizacion.cpp primero." << endl;
         return 1;
     }
-    
-	// la fecha una vez fuera de cualquier loop. cumple con la consigna "pide la fecha una vez al empezar"
+
+    // inventario.dat se abre UNA sola vez en "rb+" (lee y escribe sin borrar) y se usa para editar en el lugar
+    FILE* fInv = fopen("inventario.dat", "rb+");
+    if (fInv == NULL) {
+        cout << "No se pudo abrir inventario.dat" << endl;
+        return 1;
+    }
     char fecha[11];
     cout << "Fecha del dia (DD-MM-AAAA): ";
     cin >> fecha;
 
-	// el while que se repite mientras se quiera seguir va registrando venta por venta
+
     char seguir = 's';
     while (seguir == 's' || seguir == 'S') {
         int idMozo;
@@ -179,11 +205,10 @@ int main() {
             cout << "Cantidad: ";
             cin >> cantidad;
 
-            if (registrarVenta(inv, lenInv, mozos, posMozo, fecha,
+            if (registrarVenta(fInv, inv, lenInv, mozos, posMozo, fecha,
                                codigoProducto, cantidad)) {
                 ventasHoy++;
-                unidadesHoy += cantidad; 
-                guardarDatosFinales(inv, lenInv, mozos, lenMozos); 
+                unidadesHoy += cantidad;
             }
         }
 
@@ -191,9 +216,11 @@ int main() {
         cin >> seguir;
     }
 
-	// cuando ya terminaron de cargar todas las ventas del dia
+    fclose(fInv); // se cierra al terminar la carga
+
+    // cuando ya terminaron de cargar todas las ventas del dia
     ordenarPlanillaDelDia(fecha); // al terminar la carga, la planilla queda ordenada por mozo
-  
+
     cout << "Listo. Ventas cargadas hoy: " << ventasHoy
          << " | Unidades vendidas: " << unidadesHoy << endl;
     return 0;
