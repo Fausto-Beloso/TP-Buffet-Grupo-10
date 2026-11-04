@@ -11,28 +11,19 @@ const float TASA_COMISION = 0.10f; //comision a calcular
 
 //----- Funciones propias de ventas declaradas -----
 
-//a. abre mozos.dat creado en normalizacion.cpp
-void cargarMozos (Mozo mozos[], int &lenMozos);
-
-//b. ya no se busca mozo por nombre sino que por id
-int buscarMozoPorId (Mozo mozos[], int lenMozos, int idBuscado);
-
-//c. copia la clave tipeada y la compara con la original
+//a. copia la clave tipeada y la compara con la original
 bool validarClave (Mozo mozos[], int pos, char claveIngresada[]);
 
-//d. busca el producto (binaria), chequea stock, calcula comision, descuenta stock, suma comision al mozo y agrega el registro a ventas[]
+//b. busca el producto (binaria), chequea stock, calcula comision, descuenta stock, suma comision al mozo y graba la venta directo en la planilla del dia
 bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad);
 
-//e. selección, pero aca compara solo por idMozo
-void ordenarPlanilla (Comanda ventas[], int lenVentas);
+//c. ordena la planilla del dia por idMozo directo sobre el archivo (seleccion con fseek), sin limite de ventas
+void ordenarPlanillaDelDia (char fecha[]);
 
-//f. actualiza inventario.dat y mozos.dat
+//d. actualiza inventario.dat y mozos.dat
 void guardarDatosFinales (Producto inv[], int lenInv, Mozo mozos[], int lenMozos);
 
 //----- Funciones propias de ventas desarrolladas -----
-
-
-
 
 
 // con la posicion de mozo encontrado, compara las contrasenias
@@ -67,7 +58,7 @@ bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char 
     c.comision = comision;
 
     char nombreArchivo[30];
-    sprintf(nombreArchivo, "comandas%s.dat", fecha);
+    sprintf(nombreArchivo, "comandas_%s.dat", fecha); // comandas_dd-mm-aaaa.dat
     FILE* f = fopen(nombreArchivo, "ab"); // "ab" = agrega al final, si no existe lo crea
     if (f == NULL) {
         cout << "No se pudo abrir " << nombreArchivo << endl;
@@ -82,6 +73,43 @@ bool registrarVenta(Producto inv[], int lenInv, Mozo mozos[], int posMozo, char 
 }
 
 
+// ordena la planilla del dia por idMozo directamente sobre el archivo (seleccion), sin arrays ni punteros.
+// la cantidad de ventas sale del tamano del archivo (ftell / sizeof), asi que no hay limite
+void ordenarPlanillaDelDia(char fecha[]) {
+    char nombreArchivo[30];
+    sprintf(nombreArchivo, "comandas_%s.dat", fecha);
+
+    FILE* f = fopen(nombreArchivo, "rb+"); // lectura + escritura, edita in situ
+    if (f == NULL) return; // ese dia no se cargo nada, no hay planilla
+
+    fseek(f, 0, SEEK_END);
+    int n = ftell(f) / sizeof(Comanda); // cantidad de ventas en el archivo
+
+    Comanda actual, menor, aux; // solo 3 registros en memoria, no importa cuantas ventas haya
+    for (int i = 0; i < n - 1; i++) {
+        fseek(f, (long)i * sizeof(Comanda), SEEK_SET);
+        fread(&actual, sizeof(Comanda), 1, f); // registro de la posicion i
+        menor = actual;
+        int posMenor = i;
+
+        // el puntero ya quedo en i+1, sigo leyendo en orden buscando el idMozo mas chico
+        for (int j = i + 1; j < n; j++) {
+            fread(&aux, sizeof(Comanda), 1, f);
+            if (aux.idMozo < menor.idMozo) {
+                menor = aux;
+                posMenor = j;
+            }
+        }
+
+        if (posMenor != i) { // intercambio: el menor va a la posicion i, el que estaba en i va a donde estaba el menor
+            fseek(f, (long)i * sizeof(Comanda), SEEK_SET);
+            fwrite(&menor, sizeof(Comanda), 1, f);
+            fseek(f, (long)posMenor * sizeof(Comanda), SEEK_SET);
+            fwrite(&actual, sizeof(Comanda), 1, f);
+        }
+    }
+    fclose(f);
+}
 
 
 void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos) {
@@ -103,10 +131,9 @@ void guardarDatosFinales(Producto inv[], int lenInv, Mozo mozos[], int lenMozos)
 }
 
 int main() {
-	// declaración en RAM, cada uno con su contador
+	// declaraciÃ³n en RAM, cada uno con su contador
     const int MAX_PROD = 100;
     const int MAX_MOZOS = 100;
-    const int MAX_VENTAS_DIA = 200;
 
     Producto inv[MAX_PROD];
     int lenInv = 0;
@@ -165,6 +192,7 @@ int main() {
     }
 
 	// cuando ya terminaron de cargar todas las ventas del dia
+    ordenarPlanillaDelDia(fecha); // al terminar la carga, la planilla queda ordenada por mozo
   
     cout << "Listo. Ventas cargadas hoy: " << ventasHoy
          << " | Unidades vendidas: " << unidadesHoy << endl;
