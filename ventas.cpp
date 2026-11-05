@@ -105,13 +105,12 @@ bool registrarVenta(FILE* fInv, Producto inv[], int lenInv, Mozo mozos[], int po
         return false;
     }
     fwrite(&c, sizeof(Comanda), 1, f);
-    
+    fclose(f);
 
     // recien ahora, con la venta ya grabada, se actualizan el stock y la comision
 
     int stockPrevio;
     descontarStockEnArchivo(fInv, posProd, cantidad, stockPrevio);
-    fclose(fInv); 
     inv[posProd].stockActual = stockPrevio - cantidad; 
     // comision del mozo: se edita SOLO ese mozo en mozos.dat
     mozos[posMozo].totalComision += comision;
