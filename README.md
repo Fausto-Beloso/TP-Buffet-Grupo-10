@@ -1,11 +1,41 @@
-Grupo 10 — Algoritmos y Estructuras de Datos, UTN FRBA
+TP Integrador — Buffet Albert Einstein
+
+Grupo 10
 
 Integrantes:
 
-Fausto Beloso — [@Fausto-Beloso]
-Lautaro Nicolás Bonafina — [@lautabona]
-Francisco Trotta — [@frantrotta06]
+Fausto Beloso — @Fausto-Beloso
+Lautaro Nicolás Bonafina — @lautabona
+Francisco Trotta — @frantrotta06
+
 Cómo compilar y correr
+
+Copiar los archivos que provee la cátedra a la carpeta de trabajo (los de datos/ no se tocan):
+
+bash
+cp datos/comandas_historicas.dat datos/inventario.dat .
+
+Compilar los 4 programas (cada uno tiene su propio main):
+
+bash
+g++ -O2 -o normalizacion normalizacion.cpp
+g++ -O2 -o ventas        ventas.cpp
+g++ -O2 -o cierre        cierre.cpp
+g++ -O2 -o resumen       resumen.cpp
+
+En Windows (CMD/PowerShell) la compilación es la misma y se ejecuta con .\programa en lugar de ./programa.
+
+Ejecutar en este orden (cada uno depende de lo que deja el anterior):
+
+./normalizacion   # historicas + inventario -> mozos.dat, comandas_dd-mm-aaaa.dat (uno por día), inventario actualizado
+./ventas          # carga interactiva de ventas de UN día -> agrega/crea la planilla de ese día, ordenada por mozo
+./cierre          # junta los días que se le pidan -> comandas_semana_sX-mm.dat
+./resumen         # pide número de semana y mes -> imprime el resumen por mozo y el total
+ventas se corre una vez por cada día que se quiera cargar.
+cierre se corre una vez al final de la semana y pide las fechas una por una (formato DD-MM-AAAA).
+normalizacion modifica inventario.dat en el lugar: para repetir la prueba hay que volver a copiar los originales de datos/.
+
+Con los datos de la cátedra, el cierre de la semana da 30 comandas, 49 productos vendidos y $8770 de comisión.
 
 Diseño de datos
 
@@ -53,9 +83,15 @@ Mozo inexistente o clave incorrecta (ventas): se avisa, no se registra nada y se
 Producto inexistente: en ventas se avisa y no se registra la venta. En el histórico (normalizacion) la venta se descarta entera y no suma comisión al mozo, para que mozos.dat y las planillas queden consistentes.
 Stock insuficiente: en el histórico se deja el stock en 0 y se avisa (sin valores negativos); en ventas se rechaza la venta.
 Cantidad menor o igual a 0 (ventas): se rechaza antes de tocar stock o comisión.
-Planilla del día que no existe: no es un error. ventas la crea con la primera venta; cierre avisa que no existe y sigue con las demás fechas; si no se cargó ninguna venta, ventas no ordena nada.
-Último mozo del resumen: lo cubre el corte de control (ver arriba).
-
+Planilla del día que no existe: no es un error. ventas la crea con la primera venta; cierre avisa que no existe y sigue con las demás fechas; si al terminar la carga la planilla no existe (no se aceptó ninguna venta), ventas no tiene nada que ordenar y sigue sin error.
+Último mozo del resumen: lo cubre el corte de control.
+Limitaciones conocidas
+Las lecturas con cin >> char[] (fecha y clave) no limitan la cantidad de caracteres.
+normalizacion.cpp usa arrays de tamaño fijo (por ejemplo, 1000 ventas históricas) y resumen.cpp carga la planilla semanal en un array de 1000.
+El ordenamiento sobre archivo en ventas es O(n²) en lecturas; es aceptable para el volumen de un día del buffet.
+Si se carga la misma fecha dos veces en cierre, esas ventas se suman dos veces.
+Correr normalizacion dos veces descuenta el stock dos veces; hay que volver a copiar los originales.
+La semana se calcula con la convención (día - 1) / 7 + 1; el enunciado no la define.
 Reparto de trabajo
 
-Los 3 integrantes trabajamos juntos en los 4 programas y en 'comun.h', sin dividir un programa por persona: discutimos y programamos en conjunto cada parte (búsquedas, ordenamiento, corte de control, encriptación de claves) para que los tres pudiéramos entender y defender cualquier sección del código.
+Los 3 integrantes trabajamos juntos en los 4 programas y en comun.h, sin dividir un programa por persona: discutimos y programamos en conjunto cada parte (búsquedas, ordenamiento, corte de control, apareo, encriptación de claves) para que los tres pudiéramos entender y defender cualquier sección del código. Los commits de cada integrante están en el historial del repositorio.
