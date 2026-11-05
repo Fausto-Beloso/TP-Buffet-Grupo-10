@@ -74,6 +74,10 @@ bool actualizarMozoEnArchivo(Mozo &m, int posMozo) {
 
 // para el problema de que se quiera vender y no haya stock, decidimos rechazar la venta
 bool registrarVenta(FILE* fInv, Producto inv[], int lenInv, Mozo mozos[], int posMozo, char fecha[], int codigoProducto, int cantidad){
+    if (cantidad <= 0) {
+        cout << "La cantidad tiene que ser mayor a 0." << endl;
+        return false;
+    }
     int posProd = buscarProducto(inv, lenInv, codigoProducto);
     if (posProd == -1) {
         cout << "No existe el producto " << codigoProducto << endl;
@@ -101,7 +105,7 @@ bool registrarVenta(FILE* fInv, Producto inv[], int lenInv, Mozo mozos[], int po
         return false;
     }
     fwrite(&c, sizeof(Comanda), 1, f);
-    fclose(f);
+    
 
     // recien ahora, con la venta ya grabada, se actualizan el stock y la comision
 
